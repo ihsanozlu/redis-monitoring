@@ -1,0 +1,61 @@
+# Grafana Helm values
+# Helm chart: https://github.com/grafana/helm-charts/tree/main/charts/grafana
+#
+# Install:
+#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm upgrade --install grafana grafana/grafana -n monitoring -f values.yaml
+
+adminPassword: "<grafana-admin-password>"
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        # UID must stay "prometheus" to match the dashboard JSON queries
+        uid: prometheus
+        access: proxy
+        url: http://prometheus-server.monitoring.svc.cluster.local
+        isDefault: true
+
+grafana.ini:
+  auth:
+    anonymous:
+      enabled: false
+  smtp:
+    enabled: true
+    from_address: grafana@example.com        # replace with your sender address
+    from_name: Grafana Alerts
+    host: smtp.example.com:25                # replace with your SMTP host:port
+    skip_verify: true
+    startTLS_policy: NoStartTLS
+  users:
+    allow_sign_up: false
+
+image:
+  tag: latest
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  storageClassName: standard                 # replace with your StorageClass name
+
+replicas: 1
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+service:
+  type: NodePort
+  nodePort: 32001                            # change if port conflicts in your cluster
+
+# Override the fullname to avoid conflicts when multiple Grafana instances
+# are deployed across different namespaces
+fullnameOverride: grafana-monitoring

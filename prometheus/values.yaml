@@ -1,0 +1,75 @@
+# Prometheus Helm values
+# Helm chart: https://github.com/prometheus-community/helm-charts/tree/main/charts/prometheus
+#
+# Install:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install prometheus prometheus-community/prometheus -n monitoring -f values.yaml
+
+# Disabled components — this setup is focused on Redis monitoring only.
+# Enable these if you need broader cluster observability.
+alertmanager:
+  enabled: false
+
+kube-state-metrics:
+  enabled: false
+
+prometheus-node-exporter:
+  enabled: false
+
+prometheus-pushgateway:
+  enabled: false
+
+server:
+  retention: "10d"
+
+  persistentVolume:
+    enabled: true
+    size: 30Gi
+    storageClass: standard                   # replace with your StorageClass name
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 3Gi
+    limits:
+      memory: 5Gi
+
+  # Mount the ConfigMap that holds Redis exporter target definitions (file_sd JSON files).
+  # Create the ConfigMap separately — see README for format.
+  extraConfigmapMounts:
+    - name: prometheus-redis-targets
+      configMap: prometheus-redis-targets
+      mountPath: /etc/prometheus/file_sd/redis
+      readOnly: true
+
+# Redis exporter scrape job using file-based service discovery.
+# This allows adding/removing Redis targets without restarting Prometheus —
+# just update the ConfigMap and Prometheus will reload automatically.
+extraScrapeConfigs: |
+  - job_name: redis-exporters
+    metrics_path: /metrics
+    scheme: http
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/file_sd/redis/*.json
+
+    relabel_configs:
+      # Extract the hostname portion of the exporter address into redis_host label
+      - source_labels: [__address__]
+        regex: '([^:]+):\d+'
+        target_label: redis_host
+        replacement: '$1'
+
+      # Extract the port portion of the exporter address into exporter_port label
+      - source_labels: [__address__]
+        regex: '.+:(\d+)'
+        target_label: exporter_port
+        replacement: '$1'
+
+      # Derive the environment label from the hostname pattern.
+      # Adjust the regex to match your own naming convention.
+      # Example below matches hostnames like: hostname.prod.domain.com → environment="prod"
+      - source_labels: [redis_host]
+        regex: '.*\.(prod|stage|dev)\..*'
+        target_label: environment
+        replacement: '$1'

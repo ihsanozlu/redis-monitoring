@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-redis-targets
+  namespace: monitoring
+data:
+  redis-targets.json: |
+    [
+      {
+        "targets": [
+          "redis-node-01.prod.example.local:9121",
+          "redis-node-01.prod.example.local:9122",
+          "redis-node-02.prod.example.local:9121",
+          "redis-node-02.prod.example.local:9122",
+          "redis-node-03.prod.example.local:9121",
+          "redis-node-03.prod.example.local:9122"
+        ],
+        "labels": {
+          "redis_cluster": "prod-redis-cluster-01"
+        }
+      },
+      {
+        "targets": [
+          "redis-node-04.prod.example.local:9121",
+          "redis-node-04.prod.example.local:9122",
+          "redis-node-05.prod.example.local:9121",
+          "redis-node-05.prod.example.local:9122",
+          "redis-node-06.prod.example.local:9121",
+          "redis-node-06.prod.example.local:9122"
+        ],
+        "labels": {
+          "redis_cluster": "prod-redis-cluster-02"
+        }
+      }
+    ]
+
+# ---
+# Notes:
+#
+# - Each object in the JSON array is one Redis cluster group.
+# - "targets" lists the redis_exporter addresses (host:exporter_port).
+#   Each Redis instance needs its own exporter running on a dedicated port.
+#   Typical default is 9121; use 9122, 9123, etc. for additional instances on the same host.
+#
+# - "labels" are attached to every target in the group.
+#   redis_cluster is used by the Grafana dashboard variable for filtering.
+#
+# - The environment label is derived automatically from the hostname
+#   via Prometheus relabel_configs in prometheus/values.yaml.
+#   Adjust the regex there to match your own hostname convention.
+#
+# - After editing this ConfigMap, apply it with:
+#     kubectl apply -f configmap-redis-targets.yaml
+#   Prometheus will pick up the changes automatically via file_sd reload.
